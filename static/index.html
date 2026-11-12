@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MangaTrack — Gerenciador Pessoal de Mangás</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            slate: {
+              850: '#151e2e',
+              950: '#090d16'
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    body {
+      background-color: #0b0f19;
+      color: #f1f5f9;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    .card-glow:hover {
+      box-shadow: 0 10px 30px -10px rgba(99, 102, 241, 0.25);
+    }
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col selection:bg-indigo-500 selection:text-white">
+
+  <!-- Header -->
+  <header class="sticky top-0 z-30 border-b border-slate-800/80 bg-slate-950/85 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 font-black text-lg tracking-tighter">
+          MT
+        </div>
+        <div>
+          <h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+            MangaTrack
+            <span class="text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">PoC</span>
+          </h1>
+          <p class="text-xs text-slate-400 hidden sm:block">Controle pessoal de capítulos lidos e lançamentos</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2.5">
+        <button
+          onclick="openImportModal()"
+          class="px-3.5 py-2 rounded-lg text-xs sm:text-sm font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-2"
+          title="Importar lista colada ou fazer backup JSON"
+        >
+          <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
+          </svg>
+          <span>Importar / Backup</span>
+        </button>
+
+        <button
+          onclick="openMangaModal()"
+          class="px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/25 transition flex items-center gap-1.5"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+          </svg>
+          <span>Novo Mangá</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <!-- Stats Row -->
+    <section class="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4 flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Total na Lista</p>
+          <p id="stat-total" class="text-2xl font-bold text-white mt-1">0</p>
+        </div>
+        <div class="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center text-slate-300">
+          📚
+        </div>
+      </div>
+
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4 flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-emerald-400 uppercase tracking-wider">Lendo Atualmente</p>
+          <p id="stat-reading" class="text-2xl font-bold text-white mt-1">0</p>
+        </div>
+        <div class="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+          📖
+        </div>
+      </div>
+
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4 flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-amber-400 uppercase tracking-wider">Com Caps Acumulados</p>
+          <div class="flex items-baseline gap-2 mt-1">
+            <p id="stat-with-unread" class="text-2xl font-bold text-white">0</p>
+            <span id="stat-unread-sum" class="text-xs text-amber-300/90 font-medium">(0 caps)</span>
+          </div>
+        </div>
+        <div class="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+          🔥
+        </div>
+      </div>
+
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4 flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-indigo-400 uppercase tracking-wider">Concluídos</p>
+          <p id="stat-completed" class="text-2xl font-bold text-white mt-1">0</p>
+        </div>
+        <div class="w-10 h-10 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+          ✅
+        </div>
+      </div>
+    </section>
+
+    <!-- Controls: Status Tabs, Search, Unread Filter & Sort -->
+    <section class="bg-slate-900/75 border border-slate-800/90 rounded-2xl p-4 space-y-4">
+      <!-- Status Tabs -->
+      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3.5">
+        <div id="status-tabs" class="flex flex-wrap items-center gap-1.5">
+          <!-- Populated by JS -->
+        </div>
+
+        <button
+          id="btn-filter-unread"
+          onclick="toggleUnreadFilter()"
+          class="px-3 py-1.5 rounded-lg text-xs font-medium border transition flex items-center gap-1.5 bg-slate-800/70 text-slate-300 border-slate-700 hover:border-amber-500/50"
+        >
+          <span>⚡ Apenas com capítulos acumulados</span>
+        </button>
+      </div>
+
+      <!-- Search and Sort Row -->
+      <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div class="relative flex-1">
+          <svg class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+          <input
+            id="search-input"
+            type="text"
+            oninput="handleSearch(this.value)"
+            placeholder="Buscar mangá por título, observação ou dia..."
+            class="w-full pl-10 pr-9 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition"
+          />
+          <button
+            id="clear-search-btn"
+            onclick="clearSearch()"
+            class="hidden absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <label for="sort-select" class="text-xs text-slate-400 whitespace-nowrap">Ordenar por:</label>
+          <select
+            id="sort-select"
+            onchange="handleSort(this.value)"
+            class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500"
+          >
+            <option value="updated_desc">Atualizados recentemente</option>
+            <option value="unread_desc">Mais capítulos acumulados</option>
+            <option value="title_asc">Ordem Alfabética (A–Z)</option>
+            <option value="chapter_desc">Maior capítulo lido</option>
+            <option value="rating_desc">Maior nota</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <!-- Manga Cards Grid -->
+    <section id="manga-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <!-- Rendered via JS -->
+    </section>
+
+    <!-- Empty State -->
+    <section id="empty-state" class="hidden bg-slate-900/40 border border-dashed border-slate-800 rounded-2xl p-12 text-center">
+      <div class="text-4xl mb-3">📭</div>
+      <h3 class="text-base font-semibold text-white">Nenhum mangá encontrado</h3>
+      <p class="text-sm text-slate-400 mt-1 max-w-md mx-auto">
+        Tente ajustar os filtros de busca ou clique em <strong>Novo Mangá</strong> para adicionar um título à sua lista.
+      </p>
+    </section>
+  </main>
+
+  <!-- Create / Edit Manga Modal -->
+  <div id="manga-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/75 backdrop-blur-sm p-4 overflow-y-auto">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-5 my-8">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h2 id="modal-title" class="text-lg font-bold text-white">Novo Mangá</h2>
+        <button onclick="closeMangaModal()" class="text-slate-400 hover:text-white p-1 rounded-lg">✕</button>
+      </div>
+
+      <form id="manga-form" onsubmit="submitMangaForm(event)" class="space-y-4">
+        <input type="hidden" id="form-id" />
+
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">Título do Mangá *</label>
+          <input
+            type="text"
+            id="form-title"
+            required
+            placeholder="Ex: Infinite Leveling: Murim"
+            class="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-500"
+          />
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">Cap. Lido (Viewed) *</label>
+            <input
+              type="number"
+              step="any"
+              min="0"
+              id="form-chapter-read"
+              required
+              value="0"
+              placeholder="Ex: 30 ou 12.1"
+              class="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">Cap. Atual (Current)</label>
+            <input
+              type="number"
+              step="any"
+              min="0"
+              id="form-latest-chapter"
+              placeholder="Ex: 116 (opcional)"
+              class="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">Status</label>
+            <select
+              id="form-status"
+              class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-500"
+            >
+              <option value="Lendo">Lendo</option>
+              <option value="Planejo Ler">Planejo Ler</option>
+              <option value="Pausado">Pausado</option>
+              <option value="Concluído">Concluído</option>
+              <option value="Dropado">Dropado</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">Nota (1-10)</label>
+            <input
+              type="number"
+              min="1"
+              max="10"
+              id="form-rating"
+              placeholder="Ex: 9"
+              class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">Dia / Freq.</label>
+            <input
+              type="text"
+              id="form-release-day"
+              placeholder="Ex: Quarta"
+              class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">Link para Ler (URL)</label>
+            <input
+              type="url"
+              id="form-read-url"
+              placeholder="https://..."
+              class="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">URL da Capa (opcional)</label>
+            <input
+              type="url"
+              id="form-cover-url"
+              placeholder="https://.../capa.jpg"
+              class="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">Observações / Nome do Capítulo</label>
+          <textarea
+            id="form-notes"
+            rows="2"
+            placeholder="Ex: Cap. 15: You Can Sleep When You're Dead"
+            class="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-500"
+          ></textarea>
+        </div>
+
+        <div class="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-800">
+          <button
+            type="button"
+            onclick="closeMangaModal()"
+            class="px-4 py-2 rounded-xl text-sm font-medium bg-slate-800 hover:bg-slate-700 text-slate-300"
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            class="px-5 py-2 rounded-xl text-sm font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/25"
+          >
+            Salvar Mangá
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Import / Backup Modal -->
+  <div id="import-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/75 backdrop-blur-sm p-4 overflow-y-auto">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-5 my-8">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div>
+          <h2 class="text-lg font-bold text-white">Importar Lista ou Backup</h2>
+          <p class="text-xs text-slate-400">Cole os favoritos do seu leitor ou exporte/importe seu arquivo JSON</p>
+        </div>
+        <button onclick="closeImportModal()" class="text-slate-400 hover:text-white p-1 rounded-lg">✕</button>
+      </div>
+
+      <!-- Paste Bookmark Text Section -->
+      <div class="space-y-2.5">
+        <label class="block text-xs font-semibold uppercase tracking-wider text-indigo-300">
+          Colar Texto de Favoritos (Viewed / Current)
+        </label>
+        <p class="text-xs text-slate-400">
+          Cole linhas no formato: <code class="text-slate-300 bg-slate-950 px-1.5 py-0.5 rounded">Nome do Mangá ... Viewed : Chapter 30 Current : Chapter 116</code>. Títulos já existentes serão atualizados automaticamente!
+        </p>
+        <textarea
+          id="import-text-area"
+          rows="5"
+          placeholder="Doctor Resignation&#10;RemoveDoctor ResignationViewed : Chapter 30Current : Chapter 116Last updated : 20 hour ago"
+          class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs font-mono text-slate-200 focus:outline-none focus:border-indigo-500"
+        ></textarea>
+        <div class="flex justify-end">
+          <button
+            onclick="submitTextImport()"
+            class="px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition"
+          >
+            Processar Texto Colado
+          </button>
+        </div>
+      </div>
+
+      <!-- JSON Backup Section -->
+      <div class="border-t border-slate-800 pt-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div>
+          <h3 class="text-sm font-semibold text-white">Backup Completo (JSON)</h3>
+          <p class="text-xs text-slate-400">Salve uma cópia local ou restaure seus mangás</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button
+            onclick="exportJsonBackup()"
+            class="px-3.5 py-2 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700"
+          >
+            ⬇ Baixar JSON
+          </button>
+          <label class="px-3.5 py-2 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 cursor-pointer">
+            ⬆ Restaurar JSON
+            <input type="file" accept=".json" class="hidden" onchange="importJsonBackup(event)" />
+          </label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 hidden px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white shadow-xl flex items-center gap-2">
+    <span id="toast-message"></span>
+  </div>
+
+  <script>
+    const STATUS_LIST = ['Todos', 'Lendo', 'Planejo Ler', 'Pausado', 'Concluído', 'Dropado'];
+
+    const STATUS_STYLES = {
+      'Lendo': 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+      'Planejo Ler': 'bg-sky-500/15 text-sky-300 border-sky-500/30',
+      'Pausado': 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+      'Concluído': 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30',
+      'Dropado': 'bg-rose-500/15 text-rose-300 border-rose-500/30',
+    };
+
+    const COVER_GRADIENTS = [
+      'from-indigo-600 to-purple-700',
+      'from-emerald-600 to-teal-800',
+      'from-rose-600 to-orange-700',
+      'from-sky-600 to-indigo-800',
+      'from-fuchsia-600 to-pink-800',
+      'from-amber-600 to-red-800',
+    ];
+
+    let state = {
+      items: [],
+      stats: { total: 0, by_status: {}, with_unread: 0, total_unread_chapters: 0 },
+      activeStatus: 'Todos',
+      onlyUnread: false,
+      search: '',
+      sortBy: 'updated_desc',
+    };
+
+    function formatChapterNumber(val) {
+      if (val === null || val === undefined || val === '') return '—';
+      const num = Number(val);
+      if (Number.isNaN(num)) return String(val);
+      return Number.isInteger(num) ? String(num) : String(Number(num.toFixed(2)));
+    }
+
+    function formatRelativeTime(isoString) {
+      if (!isoString) return '';
+      const date = new Date(isoString);
+      const diffMs = Date.now() - date.getTime();
+      const diffMins = Math.floor(diffMs / 60000);
+      if (diffMins < 1) return 'agora mesmo';
+      if (diffMins < 60) return `há ${diffMins} min`;
+      const diffHours = Math.floor(diffMins / 60);
+      if (diffHours < 24) return `há ${diffHours}h`;
+      const diffDays = Math.floor(diffHours / 24);
+      if (diffDays === 1) return 'há 1 dia';
+      return `há ${diffDays} dias`;
+    }
+
+    function getInitials(title) {
+      return (title || 'M')
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map(w => w[0].toUpperCase())
+        .join('');
+    }
+
+    function getGradientForId(id) {
+      return COVER_GRADIENTS[(id || 0) % COVER_GRADIENTS.length];
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-message').textContent = msg;
+      toast.classList.remove('hidden');
+      clearTimeout(window.__toastTimer);
+      window.__toastTimer = setTimeout(() => {
+        toast.classList.add('hidden');
+      }, 3000);
+    }
+
+    async function fetchMangas() {
+      const res = await fetch('/api/mangas');
+      const data = await res.json();
+      state.items = data.items || [];
+      state.stats = data.stats || state.stats;
+      renderAll();
+    }
+
+    function renderAll() {
+      renderStats();
+      renderStatusTabs();
+      renderUnreadFilterButton();
+      renderGrid();
+    }
+
+    function renderStats() {
+      document.getElementById('stat-total').textContent = state.stats.total || 0;
+      document.getElementById('stat-reading').textContent = (state.stats.by_status && state.stats.by_status['Lendo']) || 0;
+      document.getElementById('stat-with-unread').textContent = state.stats.with_unread || 0;
+      document.getElementById('stat-unread-sum').textContent = `(${formatChapterNumber(state.stats.total_unread_chapters || 0)} caps)`;
+      document.getElementById('stat-completed').textContent = (state.stats.by_status && state.stats.by_status['Concluído']) || 0;
+    }
+
+    function renderStatusTabs() {
+      const container = document.getElementById('status-tabs');
+      container.innerHTML = STATUS_LIST.map(st => {
+        const count = st === 'Todos' ? (state.stats.total || 0) : ((state.stats.by_status && state.stats.by_status[st]) || 0);
+        const active = state.activeStatus === st;
+        const classes = active
+          ? 'bg-indigo-600 text-white border-indigo-500 shadow-sm'
+          : 'bg-slate-950/60 text-slate-400 border-slate-800 hover:text-slate-200 hover:bg-slate-800/60';
+        return `
+          <button
+            onclick="setStatusFilter('${st}')"
+            class="px-3 py-1.5 rounded-xl text-xs font-semibold border transition flex items-center gap-1.5 ${classes}"
+          >
+            <span>${st}</span>
+            <span class="px-1.5 py-0.2 rounded-md text-[11px] ${active ? 'bg-indigo-700 text-indigo-100' : 'bg-slate-900 text-slate-400'}">${count}</span>
+          </button>
+        `;
+      }).join('');
+    }
+
+    function renderUnreadFilterButton() {
+      const btn = document.getElementById('btn-filter-unread');
+      if (state.onlyUnread) {
+        btn.className = 'px-3 py-1.5 rounded-xl text-xs font-semibold border transition flex items-center gap-1.5 bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm';
+      } else {
+        btn.className = 'px-3 py-1.5 rounded-xl text-xs font-medium border transition flex items-center gap-1.5 bg-slate-950/60 text-slate-400 border-slate-800 hover:text-slate-200';
+      }
+    }
+
+    function getFilteredAndSortedItems() {
+      let list = [...state.items];
+
+      if (state.activeStatus !== 'Todos') {
+        list = list.filter(item => item.status === state.activeStatus);
+      }
+
+      if (state.onlyUnread) {
+        list = list.filter(item => (item.unread_chapters || 0) > 0);
+      }
+
+      if (state.search.trim()) {
+        const q = state.search.trim().toLowerCase();
+        list = list.filter(item =>
+          (item.title || '').toLowerCase().includes(q) ||
+          (item.notes || '').toLowerCase().includes(q) ||
+          (item.release_day || '').toLowerCase().includes(q)
+        );
+      }
+
+      list.sort((a, b) => {
+        if (state.sortBy === 'unread_desc') {
+          return (b.unread_chapters || 0) - (a.unread_chapters || 0);
+        }
+        if (state.sortBy === 'title_asc') {
+          return (a.title || '').localeCompare(b.title || '');
+        }
+        if (state.sortBy === 'chapter_desc') {
+          return (b.chapter_read || 0) - (a.chapter_read || 0);
+        }
+        if (state.sortBy === 'rating_desc') {
+          return (b.rating || 0) - (a.rating || 0);
+        }
+        // default: updated_desc
+        return (b.updated_at || '').localeCompare(a.updated_at || '');
+      });
+
+      return list;
+    }
+
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function renderGrid() {
+      const grid = document.getElementById('manga-grid');
+      const empty = document.getElementById('empty-state');
+      const items = getFilteredAndSortedItems();
+
+      if (items.length === 0) {
+        grid.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+      }
+
+      empty.classList.add('hidden');
+      grid.innerHTML = items.map(item => {
+        const readStr = formatChapterNumber(item.chapter_read);
+        const hasLatest = item.latest_chapter !== null && item.latest_chapter !== undefined;
+        const latestStr = hasLatest ? formatChapterNumber(item.latest_chapter) : null;
+        const unread = item.unread_chapters || 0;
+        const statusStyle = STATUS_STYLES[item.status] || STATUS_STYLES['Lendo'];
+
+        let progressPercent = 100;
+        if (hasLatest && item.latest_chapter > 0) {
+          progressPercent = Math.min(100, Math.max(0, Math.round((item.chapter_read / item.latest_chapter) * 100)));
+        }
+
+        const unreadBadge = unread > 0
+          ? `<span class="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30">Faltam ${formatChapterNumber(unread)} caps</span>`
+          : (hasLatest ? `<span class="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">Em dia ✓</span>` : '');
+
+        const coverHtml = item.cover_url
+          ? `<img src="${escapeHtml(item.cover_url)}" alt="${escapeHtml(item.title)}" class="w-20 h-28 object-cover rounded-xl border border-slate-700/80 shrink-0 bg-slate-800" onerror="this.style.display='none'" />`
+          : `<div class="w-20 h-28 rounded-xl bg-gradient-to-br ${getGradientForId(item.id)} flex flex-col items-center justify-center shrink-0 border border-white/10 shadow-inner select-none">
+               <span class="text-xl font-black text-white/90 tracking-tight">${escapeHtml(getInitials(item.title))}</span>
+               <span class="text-[10px] text-white/60 mt-1 uppercase font-medium">Mangá</span>
+             </div>`;
+
+        return `
+          <article class="bg-slate-900/90 border border-slate-800/90 hover:border-slate-700 rounded-2xl p-4 flex flex-col justify-between gap-4 transition card-glow">
+            <!-- Top Info -->
+            <div class="flex gap-3.5">
+              ${coverHtml}
+              <div class="flex-1 min-w-0">
+                <div class="flex items-start justify-between gap-2">
+                  <span class="px-2 py-0.5 rounded-md text-[11px] font-semibold border ${statusStyle}">
+                    ${escapeHtml(item.status)}
+                  </span>
+                  <div class="flex items-center gap-1 text-xs text-slate-400 shrink-0">
+                    ${item.rating ? `<span class="text-amber-400 font-semibold">★ ${item.rating}</span>` : ''}
+                    <span>${formatRelativeTime(item.updated_at)}</span>
+                  </div>
+                </div>
+
+                <h3 class="font-bold text-white text-base leading-snug mt-1.5 line-clamp-2" title="${escapeHtml(item.title)}">
+                  ${escapeHtml(item.title)}
+                </h3>
+
+                ${item.release_day ? `<p class="text-xs text-indigo-300 mt-1">📅 ${escapeHtml(item.release_day)}</p>` : ''}
+                ${item.notes ? `<p class="text-xs text-slate-400 mt-1 line-clamp-1" title="${escapeHtml(item.notes)}">💬 ${escapeHtml(item.notes)}</p>` : ''}
+              </div>
+            </div>
+
+            <!-- Chapter Progress Box -->
+            <div class="bg-slate-950/80 border border-slate-800/80 rounded-xl p-3 space-y-2.5">
+              <div class="flex items-center justify-between gap-2">
+                <div class="text-xs text-slate-300">
+                  <span class="text-slate-400">Lido:</span>
+                  <strong class="text-white text-sm ml-0.5">Cap. ${readStr}</strong>
+                  ${hasLatest ? `<span class="text-slate-400"> / Atual: <strong class="text-slate-200">Cap. ${latestStr}</strong></span>` : ''}
+                </div>
+                ${unreadBadge}
+              </div>
+
+              ${hasLatest ? `
+                <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                  <div class="h-full bg-gradient-to-r from-indigo-500 to-emerald-400 transition-all duration-300" style="width: ${progressPercent}%"></div>
+                </div>
+              ` : ''}
+
+              <!-- Quick Action Buttons -->
+              <div class="flex items-center justify-between gap-1.5 pt-1">
+                <div class="flex items-center gap-1.5">
+                  <button
+                    onclick="adjustChapter(${item.id}, -1)"
+                    class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition"
+                    title="Diminuir 1 capítulo lido"
+                  >
+                    -1
+                  </button>
+                  <button
+                    onclick="adjustChapter(${item.id}, 1)"
+                    class="px-3 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-sm transition"
+                    title="Avançar +1 capítulo lido"
+                  >
+                    +1 Lido
+                  </button>
+                  ${unread > 0 ? `
+                    <button
+                      onclick="catchUpManga(${item.id})"
+                      class="px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-xs font-semibold transition"
+                      title="Marcar capítulo lido igual ao atual (${latestStr})"
+                    >
+                      ✓ Em dia
+                    </button>
+                  ` : ''}
+                </div>
+
+                <div class="flex items-center gap-1">
+                  ${item.read_url ? `
+                    <a
+                      href="${escapeHtml(item.read_url)}"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="p-1.5 rounded-lg bg-slate-800 hover:bg-indigo-600 text-slate-300 hover:text-white text-xs transition"
+                      title="Abrir site para ler"
+                    >
+                      🔗
+                    </a>
+                  ` : ''}
+                  <button
+                    onclick="openEditManga(${item.id})"
+                    class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs transition"
+                    title="Editar mangá"
+                  >
+                    ✏️
+                  </button>
+                  <button
+                    onclick="deleteManga(${item.id})"
+                    class="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-600/80 text-slate-400 hover:text-white text-xs transition"
+                    title="Remover mangá"
+                  >
+                    🗑️
+                  </button>
+                </div>
+              </div>
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    function setStatusFilter(status) {
+      state.activeStatus = status;
+      renderAll();
+    }
+
+    function toggleUnreadFilter() {
+      state.onlyUnread = !state.onlyUnread;
+      renderAll();
+    }
+
+    function handleSearch(val) {
+      state.search = val;
+      const clearBtn = document.getElementById('clear-search-btn');
+      if (val.trim()) {
+        clearBtn.classList.remove('hidden');
+      } else {
+        clearBtn.classList.add('hidden');
+      }
+      renderGrid();
+    }
+
+    function clearSearch() {
+      const input = document.getElementById('search-input');
+      input.value = '';
+      handleSearch('');
+    }
+
+    function handleSort(val) {
+      state.sortBy = val;
+      renderGrid();
+    }
+
+    async function adjustChapter(id, delta) {
+      const res = await fetch(`/api/mangas/${id}/chapter`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ delta }),
+      });
+      if (res.ok) {
+        await fetchMangas();
+      }
+    }
+
+    async function catchUpManga(id) {
+      const res = await fetch(`/api/mangas/${id}/chapter`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ catch_up: true }),
+      });
+      if (res.ok) {
+        showToast('Marcado como em dia!');
+        await fetchMangas();
+      }
+    }
+
+    function openMangaModal() {
+      document.getElementById('modal-title').textContent = 'Novo Mangá';
+      document.getElementById('form-id').value = '';
+      document.getElementById('form-title').value = '';
+      document.getElementById('form-chapter-read').value = '0';
+      document.getElementById('form-latest-chapter').value = '';
+      document.getElementById('form-status').value = 'Lendo';
+      document.getElementById('form-rating').value = '';
+      document.getElementById('form-release-day').value = '';
+      document.getElementById('form-read-url').value = '';
+      document.getElementById('form-cover-url').value = '';
+      document.getElementById('form-notes').value = '';
+
+      const modal = document.getElementById('manga-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      document.getElementById('form-title').focus();
+    }
+
+    function openEditManga(id) {
+      const item = state.items.find(m => m.id === id);
+      if (!item) return;
+
+      document.getElementById('modal-title').textContent = 'Editar Mangá';
+      document.getElementById('form-id').value = item.id;
+      document.getElementById('form-title').value = item.title || '';
+      document.getElementById('form-chapter-read').value = item.chapter_read ?? 0;
+      document.getElementById('form-latest-chapter').value = item.latest_chapter ?? '';
+      document.getElementById('form-status').value = item.status || 'Lendo';
+      document.getElementById('form-rating').value = item.rating ?? '';
+      document.getElementById('form-release-day').value = item.release_day || '';
+      document.getElementById('form-read-url').value = item.read_url || '';
+      document.getElementById('form-cover-url').value = item.cover_url || '';
+      document.getElementById('form-notes').value = item.notes || '';
+
+      const modal = document.getElementById('manga-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeMangaModal() {
+      const modal = document.getElementById('manga-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    async function submitMangaForm(e) {
+      e.preventDefault();
+      const id = document.getElementById('form-id').value;
+      const title = document.getElementById('form-title').value.trim();
+      const chapterRead = parseFloat(document.getElementById('form-chapter-read').value || '0');
+      const latestRaw = document.getElementById('form-latest-chapter').value;
+      const latestChapter = latestRaw !== '' ? parseFloat(latestRaw) : null;
+      const status = document.getElementById('form-status').value;
+      const ratingRaw = document.getElementById('form-rating').value;
+      const rating = ratingRaw !== '' ? parseInt(ratingRaw, 10) : null;
+      const releaseDay = document.getElementById('form-release-day').value.trim();
+      const readUrl = document.getElementById('form-read-url').value.trim();
+      const coverUrl = document.getElementById('form-cover-url').value.trim();
+      const notes = document.getElementById('form-notes').value.trim();
+
+      const payload = {
+        title,
+        chapter_read: chapterRead,
+        latest_chapter: latestChapter,
+        clear_latest_chapter: latestChapter === null,
+        status,
+        rating,
+        clear_rating: rating === null,
+        release_day: releaseDay,
+        read_url: readUrl,
+        cover_url: coverUrl,
+        notes,
+      };
+
+      const url = id ? `/api/mangas/${id}` : '/api/mangas';
+      const method = id ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        closeMangaModal();
+        showToast(id ? 'Mangá atualizado!' : 'Mangá adicionado!');
+        await fetchMangas();
+      } else {
+        showToast('Erro ao salvar mangá.');
+      }
+    }
+
+    async function deleteManga(id) {
+      const item = state.items.find(m => m.id === id);
+      if (!item) return;
+      if (!confirm(`Remover "${item.title}" da sua lista?`)) return;
+
+      const res = await fetch(`/api/mangas/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        showToast('Mangá removido.');
+        await fetchMangas();
+      }
+    }
+
+    function openImportModal() {
+      const modal = document.getElementById('import-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeImportModal() {
+      const modal = document.getElementById('import-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    async function submitTextImport() {
+      const text = document.getElementById('import-text-area').value.trim();
+      if (!text) {
+        showToast('Cole o texto antes de importar.');
+        return;
+      }
+      const res = await fetch('/api/mangas/import-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        document.getElementById('import-text-area').value = '';
+        closeImportModal();
+        showToast(`Importado! ${data.inserted} novos, ${data.updated} atualizados.`);
+        await fetchMangas();
+      } else {
+        showToast(data.detail || 'Formato não reconhecido.');
+      }
+    }
+
+    async function exportJsonBackup() {
+      const res = await fetch('/api/mangas/export');
+      const data = await res.json();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `mangatrack-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Backup JSON baixado!');
+    }
+
+    async function importJsonBackup(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const parsed = JSON.parse(text);
+        const items = Array.isArray(parsed) ? parsed : (parsed.items || []);
+        const res = await fetch('/api/mangas/import-json', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ items }),
+        });
+        const result = await res.json();
+        if (res.ok) {
+          closeImportModal();
+          showToast(`Backup restaurado! (${result.inserted} novos, ${result.updated} atualizados)`);
+          await fetchMangas();
+        }
+      } catch (err) {
+        showToast('Arquivo JSON inválido.');
+      } finally {
+        event.target.value = '';
+      }
+    }
+
+    // Initialize
+    fetchMangas();
+  </script>
+</body>
+</html>
